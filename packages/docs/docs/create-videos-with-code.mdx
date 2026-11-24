@@ -1,31 +1,404 @@
----
-image: https://remotion.media/docs/generated/articles-docs-create-videos-with-code.png
-title: Create videos with code
-crumb: 'Wait, you read the code?'
----
+set -e
+P=/home/claude/videos-ia-epico
+rm -rf $P && mkdir -p $P/src $P/scripts $P/public/voz
+cd $P
 
-import {Grid} from '../components/TableOfContents/Grid';
-import {TOCItem} from '../components/TableOfContents/TOCItem';
+cat > package.json <<'EOF'
+{
+  "name": "videos-ia-epico",
+  "private": true,
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts Epico out/epico.mp4 --codec=h264 --crf=16",
+    "review": "tsx scripts/stills.ts"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.3",
+    "tsx": "^4.19.0",
+    "typescript": "5.5.4"
+  }
+}
+EOF
 
-Remotion came out in 2021, way before agents were the hype. <br />
-How did people create videos back then? They wrote code themselves!
+cat > tsconfig.json <<'EOF'
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": ["src", "scripts", "remotion.config.ts"]
+}
+EOF
 
-By learning how Remotion markup works, you can do more sophisticated videos, optimize performance, make and publish your own components, connect data and become ready to build apps.
+cat > remotion.config.ts <<'EOF'
+import {Config} from "@remotion/cli/config";
 
-<Grid>
-  <TOCItem link="/docs/idea">
-    <strong>The core idea</strong>
-  </TOCItem>
-  <TOCItem link="/docs/components">
-    <strong>Components</strong>
-  </TOCItem>
-  <TOCItem link="/docs/timing">
-    <strong>Timing and trimming</strong>
-  </TOCItem>
-  <TOCItem link="/docs/animating-properties">
-    <strong>Animating properties</strong>
-  </TOCItem>
-  <TOCItem link="/docs/composing">
-    <strong>Composing components</strong>
-  </TOCItem>
-</Grid>
+Config.setVideoImageFormat("jpeg");
+Config.setOverwriteOutput(true);
+EOF
+
+cat > src/index.ts <<'EOF'
+import {registerRoot} from "remotion";
+import {Root} from "./Root";
+
+registerRoot(Root);
+EOF
+
+cat > src/data.ts <<'EOF'
+export const FPS = 30;
+
+// Ponlos en true cuando tengas los archivos en /public
+export const HAS_VOICE = false; // public/voz/01.mp3 ... 10.mp3
+export const HAS_MUSIC = false; // public/musica.mp3
+
+export type Seg = {
+  id: number;
+  momento: string; // minuto del clip original, solo informativo
+  src: number; // segundo del clip donde empieza el corte
+  dur: number; // segundos del clip original que se usan
+  rate: number; // velocidad: 1 normal, 0.5 cámara lenta
+  zoom: [number, number]; // zoom inicial y final
+  focusX: number; // % horizontal del recorte vertical (50 = centro)
+  shake: number; // intensidad del temblor en el impacto
+  flash: boolean; // destello blanco en el impacto
+  text: string; // locución en español (también son los subtítulos)
+};
+
+// El "impacto" de cada corte ocurre a 1,5 s de su inicio (momento detectado).
+export const SEGS: Seg[] = [
+  {id: 1, momento: "0:03", src: 1.5, dur: 3.5, rate: 1, zoom: [1.0, 1.15], focusX: 50, shake: 0, flash: false,
+    text: "Todo empezó con un choque. Un segundo de duda y la partida cambió."},
+  {id: 2, momento: "0:15", src: 13.5, dur: 3.5, rate: 1, zoom: [1.15, 1.0], focusX: 50, shake: 0, flash: false,
+    text: "Avanzo entre las cajas. Cada paso, un latido. Están cerca."},
+  {id: 3, momento: "0:34", src: 32.5, dur: 4, rate: 1, zoom: [1.0, 1.2], focusX: 50, shake: 6, flash: true,
+    text: "Primer contacto. El disparo retumba y cae el primero."},
+  {id: 4, momento: "0:45", src: 43.5, dur: 3.5, rate: 1, zoom: [1.2, 1.05], focusX: 50, shake: 8, flash: true,
+    text: "La granada estalla. Ya no hay marcha atrás."},
+  {id: 5, momento: "0:58", src: 56.5, dur: 3.5, rate: 1, zoom: [1.0, 1.15], focusX: 50, shake: 4, flash: false,
+    text: "Uno menos. Pero ellos también aprietan."},
+  {id: 6, momento: "1:10", src: 68.5, dur: 3.5, rate: 1, zoom: [1.1, 1.0], focusX: 50, shake: 0, flash: false,
+    text: "Entre humo y hielo no se ve nada. Solo instinto."},
+  {id: 7, momento: "1:17", src: 75.5, dur: 3.5, rate: 0.7, zoom: [1.0, 1.3], focusX: 50, shake: 10, flash: true,
+    text: "Y llega la venganza. Un disparo a la cabeza que lo cambia todo."},
+  {id: 8, momento: "1:27", src: 85.5, dur: 3.5, rate: 1, zoom: [1.15, 1.0], focusX: 50, shake: 0, flash: false,
+    text: "Empate. Todo se decide ahora."},
+  {id: 9, momento: "1:34", src: 92.5, dur: 3.5, rate: 1, zoom: [1.0, 1.15], focusX: 50, shake: 3, flash: false,
+    text: "Respiro hondo. Silencio. Solo queda el último."},
+  {id: 10, momento: "1:40", src: 98.5, dur: 3, rate: 0.5, zoom: [1.0, 1.4], focusX: 50, shake: 12, flash: true,
+    text: "Mira fija. Y eliminado. Esta es mi historia."},
+];
+
+export const segFrames = (s: Seg) => Math.round((s.dur / s.rate) * FPS);
+
+export const STARTS: number[] = SEGS.reduce<number[]>((acc, _s, i) => {
+  acc.push(i === 0 ? 0 : acc[i - 1] + segFrames(SEGS[i - 1]));
+  return acc;
+}, []);
+
+export const TOTAL = STARTS[STARTS.length - 1] + segFrames(SEGS[SEGS.length - 1]);
+
+// Fotograma (dentro del corte) donde ocurre el impacto
+export const peakFrame = (s: Seg) => Math.round((1.5 / s.rate) * FPS);
+EOF
+
+cat > src/Root.tsx <<'EOF'
+import React from "react";
+import {Composition} from "remotion";
+import {Epico} from "./Video";
+import {FPS, TOTAL} from "./data";
+
+export const Root: React.FC = () => (
+  <Composition
+    id="Epico"
+    component={Epico}
+    durationInFrames={TOTAL}
+    fps={FPS}
+    width={1080}
+    height={1920}
+  />
+);
+EOF
+
+cat > src/Subtitles.tsx <<'EOF'
+import React from "react";
+import {interpolate, spring, useCurrentFrame, useVideoConfig} from "remotion";
+
+const CHUNK = 3; // palabras visibles a la vez
+
+export const Subtitles: React.FC<{text: string}> = ({text}) => {
+  const frame = useCurrentFrame();
+  const {durationInFrames, fps} = useVideoConfig();
+  const words = text.split(" ");
+
+  // Reparto uniforme de palabras. Si usas voz real, sustituye por tiempos exactos.
+  const startAt = 6;
+  const endAt = durationInFrames * 0.92;
+  const progress = Math.min(1, Math.max(0, (frame - startAt) / (endAt - startAt)));
+  const active = Math.min(words.length - 1, Math.floor(progress * words.length));
+  const chunk = Math.floor(active / CHUNK);
+  const visible = words.slice(chunk * CHUNK, chunk * CHUNK + CHUNK);
+
+  const wordStart = startAt + (active / words.length) * (endAt - startAt);
+  const pop = spring({frame: frame - wordStart, fps, config: {damping: 12, stiffness: 200}});
+  const popScale = interpolate(pop, [0, 1], [1.3, 1]);
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: 60,
+        right: 60,
+        bottom: 420, // zona segura: no tapar la interfaz de TikTok/Reels/Shorts
+        display: "flex",
+        justifyContent: "center",
+        flexWrap: "wrap",
+        gap: 20,
+      }}
+    >
+      {visible.map((w, i) => {
+        const idx = chunk * CHUNK + i;
+        const isActive = idx === active;
+        return (
+          <span
+            key={idx}
+            style={{
+              opacity: idx <= active ? 1 : 0,
+              color: isActive ? "#FFD400" : "#FFFFFF",
+              transform: `scale(${isActive ? popScale : 1})`,
+              fontFamily: "Impact, 'Arial Black', sans-serif",
+              fontSize: 100,
+              fontWeight: 900,
+              textTransform: "uppercase",
+              WebkitTextStroke: "8px #000",
+              paintOrder: "stroke fill",
+              textShadow: "0 10px 28px rgba(0,0,0,0.75)",
+              lineHeight: 1.05,
+            }}
+          >
+            {w}
+          </span>
+        );
+      })}
+    </div>
+  );
+};
+EOF
+
+cat > src/Video.tsx <<'EOF'
+import React from "react";
+import {
+  AbsoluteFill,
+  Audio,
+  Easing,
+  OffthreadVideo,
+  Sequence,
+  interpolate,
+  staticFile,
+  useCurrentFrame,
+  useVideoConfig,
+} from "remotion";
+import {FPS, HAS_MUSIC, HAS_VOICE, SEGS, STARTS, TOTAL, peakFrame, segFrames, Seg} from "./data";
+import {Subtitles} from "./Subtitles";
+
+const Segment: React.FC<{seg: Seg}> = ({seg}) => {
+  const frame = useCurrentFrame();
+  const {durationInFrames} = useVideoConfig();
+  const t = frame / durationInFrames;
+  const peak = peakFrame(seg);
+  const since = frame - peak;
+
+  // Zoom lento + golpe de zoom en el impacto
+  const zoom = interpolate(t, [0, 1], seg.zoom, {easing: Easing.out(Easing.quad)});
+  const punch = since >= 0 ? 0.08 * Math.max(0, 1 - since / 10) : 0;
+
+  // Temblor de cámara que se apaga tras el impacto
+  const decay = since >= 0 ? Math.max(0, 1 - since / 20) : 0;
+  const dx = Math.sin(frame * 1.9) * seg.shake * decay;
+  const dy = Math.cos(frame * 2.7) * seg.shake * decay;
+
+  // Destello blanco en el impacto
+  const flash = seg.flash
+    ? interpolate(frame, [peak, peak + 2, peak + 10], [0, 0.85, 0], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+      })
+    : 0;
+
+  // Título solo en el primer corte
+  const titleOpacity =
+    seg.id === 1
+      ? interpolate(frame, [0, 10, 40, 55], [0, 1, 1, 0], {extrapolateRight: "clamp"})
+      : 0;
+
+  return (
+    <AbsoluteFill style={{backgroundColor: "#000"}}>
+      <AbsoluteFill style={{transform: `translate(${dx}px, ${dy}px) scale(${zoom + punch})`}}>
+        <OffthreadVideo
+          src={staticFile("clip.mp4")}
+          startFrom={Math.round(seg.src * FPS)}
+          playbackRate={seg.rate}
+          volume={0.5}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover", // 2340x1080 -> 1080x1920, recorte centrado
+            objectPosition: `${seg.focusX}% 50%`,
+            filter: "contrast(1.18) saturate(1.25) brightness(0.95)",
+          }}
+        />
+      </AbsoluteFill>
+
+      {/* Viñeta oscura para look cinematográfico */}
+      <AbsoluteFill
+        style={{
+          background: "radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(0,0,0,0.65) 100%)",
+        }}
+      />
+
+      <AbsoluteFill style={{backgroundColor: "#fff", opacity: flash}} />
+
+      {seg.id === 1 && (
+        <AbsoluteFill style={{justifyContent: "flex-start", alignItems: "center", paddingTop: 260, opacity: titleOpacity}}>
+          <div
+            style={{
+              fontFamily: "Impact, 'Arial Black', sans-serif",
+              fontSize: 130,
+              color: "#FFD400",
+              WebkitTextStroke: "8px #000",
+              paintOrder: "stroke fill",
+              textAlign: "center",
+              lineHeight: 1,
+            }}
+          >
+            EL ÚLTIMO
+            <br />
+            DISPARO
+          </div>
+        </AbsoluteFill>
+      )}
+
+      <Subtitles text={seg.text} />
+
+      {HAS_VOICE && <Audio src={staticFile(`voz/${String(seg.id).padStart(2, "0")}.mp3`)} />}
+    </AbsoluteFill>
+  );
+};
+
+export const Epico: React.FC = () => (
+  <AbsoluteFill style={{backgroundColor: "#000"}}>
+    {SEGS.map((seg, i) => (
+      <Sequence key={seg.id} from={STARTS[i]} durationInFrames={segFrames(seg)}>
+        <Segment seg={seg} />
+      </Sequence>
+    ))}
+    {HAS_MUSIC && (
+      <Audio
+        src={staticFile("musica.mp3")}
+        volume={(f) =>
+          interpolate(f, [0, TOTAL * 0.7, TOTAL - 30, TOTAL], [0.2, 0.5, 0.7, 0], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          })
+        }
+      />
+    )}
+  </AbsoluteFill>
+);
+EOF
+
+cat > scripts/stills.ts <<'EOF'
+// Revisión fotograma a fotograma: exporta stills de cada corte en out/review/
+import {execSync} from "node:child_process";
+import {mkdirSync} from "node:fs";
+import {SEGS, STARTS, segFrames, peakFrame} from "../src/data";
+
+mkdirSync("out/review", {recursive: true});
+
+SEGS.forEach((s, i) => {
+  const a = STARTS[i];
+  const n = segFrames(s);
+  const p = a + peakFrame(s);
+  const frames: Record<string, number> = {
+    "1_inicio": a + 1,
+    "2_pico": p,
+    "3_pico_mas5": p + 5,
+    "4_final": a + n - 2,
+  };
+  for (const [name, f] of Object.entries(frames)) {
+    const id = String(s.id).padStart(2, "0");
+    execSync(
+      `npx remotion still src/index.ts Epico out/review/seg${id}_${name}.png --frame=${f}`,
+      {stdio: "inherit"}
+    );
+  }
+});
+console.log("Listo: revisa la carpeta out/review/");
+EOF
+
+cat > README.md <<'EOF'
+# Videos IA — "El último disparo" (vertical 1080x1920, 30 fps, ~40 s)
+
+## 1. Preparar el clip (obligatorio)
+El original es de fps variable (VFR) y Remotion lo necesita constante:
+
+    ffmpeg -i TU_CLIP.mp4 -vf "scale=-2:1080" -r 30 -c:v libx264 -crf 20 -c:a aac -ar 48000 public/clip.mp4
+
+## 2. Instalar y previsualizar
+    npm install
+    npm run studio
+
+## 3. Voz en español
+Genera un audio por corte con el texto de src/data.ts (campo `text`) y guárdalos como
+public/voz/01.mp3 ... 10.mp3. Luego pon HAS_VOICE = true en src/data.ts.
+Tono: grave, pausado, con subida de intensidad hacia los cortes 7 y 10.
+Música épica opcional en public/musica.mp3 (HAS_MUSIC = true).
+
+## 4. Revisión de cada fotograma
+    npm run review
+Crea out/review/segXX_*.png (inicio, impacto, impacto+5, final de cada corte).
+Revisa sobre todo los cortes 7 y 10 (cámara lenta): si el clip no empieza donde
+debe, ajusta `src` en src/data.ts.
+
+## 5. Render final
+    npm run render      ->  out/epico.mp4
+
+## Storyboard
+| # | Clip | Efecto |
+|---|------|--------|
+| 1 | 0:03 | gancho + título |
+| 2 | 0:15 | tensión, zoom out |
+| 3 | 0:34 | derribo: destello + temblor |
+| 4 | 0:45 | granada: destello + temblor |
+| 5 | 0:58 | segundo derribo |
+| 6 | 1:10 | humo/hielo |
+| 7 | 1:17 | VENGANZA: cámara lenta 0.7x |
+| 8 | 1:27 | empate |
+| 9 | 1:34 | silencio antes del remate |
+| 10 | 1:40 | CLÍMAX: cámara lenta 0.5x, zoom 1.4x |
+EOF
+
+find . -type f | sort
+cd /home/claude && python3 - <<'EOF'
+import zipfile, os
+os.makedirs('/mnt/user-data/outputs', exist_ok=True)
+z = zipfile.ZipFile('/mnt/user-data/outputs/videos-ia-epico.zip','w',zipfile.ZIP_DEFLATED)
+base='/home/claude/videos-ia-epico'
+for r,_,fs in os.walk(base):
+    for f in fs:
+        p=os.path.join(r,f); z.write(p, os.path.join('videos-ia-epico', os.path.relpath(p,base)))
+# carpeta voz vacía
+z.writestr('videos-ia-epico/public/voz/.gitkeep','')
+z.close()
+print('zip ok', os.path.getsize('/mnt/user-data/outputs/videos-ia-epico.zip'))
+EOF
